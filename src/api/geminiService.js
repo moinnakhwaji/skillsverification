@@ -19,14 +19,32 @@ export const getQuestions = async (skills) => {
 export const getRating = async (question, answer) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const prompt = `Evaluate the following answer on a scale of 1 to 5, where 5 is excellent and 1 is poor. Provide only the rating as a number.\n\nQuestion: ${question}\nAnswer: ${answer}\nRating:`;
+    const prompt = `Evaluate the following answer on a scale of 1 to 5, where 5 is excellent and 1 is poor. Provide the output in the following JSON format:
+    {
+      "rating": <number>,
+      "suggestion": "<short suggestion>"
+    }
+    
+    Question: ${question}
+    Answer: ${answer}`;
 
     const result = await model.generateContent(prompt);
-    const rating = parseInt(result.response.text().trim(), 10);
+    const responseText = result.response.text().trim();
 
-    return isNaN(rating) ? "N/A" : rating;
+    // Try parsing JSON response
+    try {
+      const parsedData = JSON.parse(responseText);
+      return {
+        rating: parsedData.rating || "N/A",
+        suggestion: parsedData.suggestion || "No suggestion provided.",
+      };
+    } catch (jsonError) {
+      console.error("JSON Parsing Error:", jsonError);
+      return { rating: "N/A", suggestion: "Error parsing suggestion." };
+    }
   } catch (error) {
-    console.error("Error fetching rating:", error);
-    return "N/A";
+    console.error("Error fetching rating and suggestion:", error);
+    return { rating: "N/A", suggestion: "Error fetching suggestion." };
   }
 };
+
